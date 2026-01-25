@@ -18,6 +18,13 @@
 - ポーリング間隔: 10秒
 - YAMLを更新したら必ずタイムスタンプを更新
 
+### 緊急時の tmux send-keys 使用方法
+緊急時にのみ使用。必ず `Enter` を使用すること（`C-m` は使用禁止）。
+```bash
+# 例：Karoセッションにコマンドを送る
+tmux send-keys -t multiagent:0.0 'コマンド' Enter
+```
+
 ### ファイルパス（Root = ~/claude-shogun）
 - 設定: config/projects.yaml
 - 全体状態: status/master_status.yaml

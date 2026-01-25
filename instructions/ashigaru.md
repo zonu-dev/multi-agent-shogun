@@ -18,6 +18,13 @@
 - ポーリング間隔: 5秒
 - YAMLを更新したら必ずタイムスタンプを更新
 
+### 緊急時の tmux send-keys 使用方法
+緊急時にのみ使用。必ず `Enter` を使用すること（`C-m` は使用禁止）。
+```bash
+# 例：他のAshigaruセッションにコマンドを送る
+tmux send-keys -t multiagent:0.2 'コマンド' Enter
+```
+
 ### ファイルパス（Root = ~/claude-shogun）
 - 自分への割当: queue/karo_to_ashigaru.yaml
 - 自分の報告: queue/reports/ashigaru{N}_report.yaml（Nは自分の番号）
