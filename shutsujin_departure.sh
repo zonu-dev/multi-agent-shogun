@@ -76,6 +76,7 @@ SETUP_ONLY=false
 OPEN_TERMINAL=false
 CLEAN_MODE=false
 KESSEN_MODE=false
+CODEX_MODE=false
 SHELL_OVERRIDE=""
 
 while [[ $# -gt 0 ]]; do
@@ -90,6 +91,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -k|--kessen)
             KESSEN_MODE=true
+            shift
+            ;;
+        -x|--codex)
+            CODEX_MODE=true
             shift
             ;;
         -t|--terminal)
@@ -116,6 +121,10 @@ while [[ $# -gt 0 ]]; do
             echo "                      未指定時は前回の状態を維持して起動"
             echo "  -k, --kessen        決戦の陣（全足軽をOpus Thinkingで起動）"
             echo "                      未指定時は平時の陣（足軽1-4=Sonnet, 足軽5-8=Opus）"
+            echo "  -x, --codex         足軽をOpenAI Codex CLIで起動"
+            echo "                      足軽1-4: -p standard (reasoning high)"
+            echo "                      足軽5-8: -p heavy (reasoning xhigh)"
+            echo "                      ※ -k との併用不可、~/.codex/config.toml にプロファイル必要"
             echo "  -s, --setup-only    tmuxセッションのセットアップのみ（Claude起動なし）"
             echo "  -t, --terminal      Windows Terminal で新しいタブを開く"
             echo "  -shell, --shell SH  シェルを指定（bash または zsh）"
@@ -129,7 +138,9 @@ while [[ $# -gt 0 ]]; do
             echo "  ./shutsujin_departure.sh -t           # 全エージェント起動 + ターミナルタブ展開"
             echo "  ./shutsujin_departure.sh -shell bash  # bash用プロンプトで起動"
             echo "  ./shutsujin_departure.sh -k           # 決戦の陣（全足軽Opus Thinking）"
-            echo "  ./shutsujin_departure.sh -c -k         # クリーンスタート＋決戦の陣"
+            echo "  ./shutsujin_departure.sh -c -k        # クリーンスタート＋決戦の陣"
+            echo "  ./shutsujin_departure.sh -x           # 足軽をOpenAI Codexで起動"
+            echo "  ./shutsujin_departure.sh -c -x        # クリーンスタート＋Codex"
             echo "  ./shutsujin_departure.sh -shell zsh   # zsh用プロンプトで起動"
             echo ""
             echo "モデル構成:"
@@ -141,6 +152,7 @@ while [[ $# -gt 0 ]]; do
             echo "陣形:"
             echo "  平時の陣（デフォルト）: 足軽1-4=Sonnet Thinking, 足軽5-8=Opus Thinking"
             echo "  決戦の陣（--kessen）:   全足軽=Opus Thinking"
+            echo "  Codex陣（--codex）:     足軽1-4=Codex(high), 足軽5-8=Codex(xhigh)"
             echo ""
             echo "エイリアス:"
             echo "  csst  → cd /mnt/c/tools/multi-agent-shogun && ./shutsujin_departure.sh"
@@ -165,6 +177,14 @@ if [ -n "$SHELL_OVERRIDE" ]; then
         echo "エラー: -shell オプションには bash または zsh を指定してください（指定値: $SHELL_OVERRIDE）"
         exit 1
     fi
+fi
+
+# -k と -x の排他チェック
+if [ "$KESSEN_MODE" = true ] && [ "$CODEX_MODE" = true ]; then
+    echo "エラー: -k（決戦の陣）と -x（Codex）は同時に指定できません"
+    echo "  -k: 全足軽をOpus Thinkingで起動"
+    echo "  -x: 全足軽をOpenAI Codexで起動"
+    exit 1
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -465,7 +485,9 @@ tmux split-window -v
 # ペインラベル設定（プロンプト用: モデル名なし）
 PANE_LABELS=("karo" "ashigaru1" "ashigaru2" "ashigaru3" "ashigaru4" "ashigaru5" "ashigaru6" "ashigaru7" "ashigaru8")
 # ペインタイトル設定（tmuxタイトル用: モデル名付き）
-if [ "$KESSEN_MODE" = true ]; then
+if [ "$CODEX_MODE" = true ]; then
+    PANE_TITLES=("karo(Opus)" "ashigaru1(Codex-high)" "ashigaru2(Codex-high)" "ashigaru3(Codex-high)" "ashigaru4(Codex-high)" "ashigaru5(Codex-xhigh)" "ashigaru6(Codex-xhigh)" "ashigaru7(Codex-xhigh)" "ashigaru8(Codex-xhigh)")
+elif [ "$KESSEN_MODE" = true ]; then
     PANE_TITLES=("karo(Opus)" "ashigaru1(Opus)" "ashigaru2(Opus)" "ashigaru3(Opus)" "ashigaru4(Opus)" "ashigaru5(Opus)" "ashigaru6(Opus)" "ashigaru7(Opus)" "ashigaru8(Opus)")
 else
     PANE_TITLES=("karo(Opus)" "ashigaru1(Sonnet)" "ashigaru2(Sonnet)" "ashigaru3(Sonnet)" "ashigaru4(Sonnet)" "ashigaru5(Opus)" "ashigaru6(Opus)" "ashigaru7(Opus)" "ashigaru8(Opus)")
@@ -476,7 +498,9 @@ PANE_COLORS=("red" "blue" "blue" "blue" "blue" "blue" "blue" "blue" "blue")
 AGENT_IDS=("karo" "ashigaru1" "ashigaru2" "ashigaru3" "ashigaru4" "ashigaru5" "ashigaru6" "ashigaru7" "ashigaru8")
 
 # モデル名設定（pane-border-format で常時表示するため）
-if [ "$KESSEN_MODE" = true ]; then
+if [ "$CODEX_MODE" = true ]; then
+    MODEL_NAMES=("Opus Thinking" "Codex(high)" "Codex(high)" "Codex(high)" "Codex(high)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)")
+elif [ "$KESSEN_MODE" = true ]; then
     MODEL_NAMES=("Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking")
 else
     MODEL_NAMES=("Opus Thinking" "Sonnet Thinking" "Sonnet Thinking" "Sonnet Thinking" "Sonnet Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking")
@@ -510,6 +534,18 @@ if [ "$SETUP_ONLY" = false ]; then
         exit 1
     fi
 
+    # Codex CLI の存在チェック（-x オプション時のみ）
+    if [ "$CODEX_MODE" = true ]; then
+        if ! command -v codex &> /dev/null; then
+            log_info "⚠️  codex コマンドが見つかりません"
+            echo "  OpenAI Codex CLI をインストールしてください:"
+            echo "    npm install -g @openai/codex"
+            echo "  または:"
+            echo "    https://developers.openai.com/codex/cli/"
+            exit 1
+        fi
+    fi
+
     log_war "👑 全軍に Claude Code を召喚中..."
 
     # 将軍
@@ -526,7 +562,23 @@ if [ "$SETUP_ONLY" = false ]; then
     tmux send-keys -t "multiagent:agents.${p}" Enter
     log_info "  └─ 家老（Opus Thinking）、召喚完了"
 
-    if [ "$KESSEN_MODE" = true ]; then
+    if [ "$CODEX_MODE" = true ]; then
+        # Codex陣: 全足軽 OpenAI Codex CLI
+        # プロファイルで reasoning effort を指定（standard=high, heavy=xhigh）
+        for i in {1..4}; do
+            p=$((PANE_BASE + i))
+            tmux send-keys -t "multiagent:agents.${p}" "codex -p standard --full-auto"
+            tmux send-keys -t "multiagent:agents.${p}" Enter
+        done
+        log_info "  └─ 足軽1-4（Codex standard/high）、召喚完了"
+
+        for i in {5..8}; do
+            p=$((PANE_BASE + i))
+            tmux send-keys -t "multiagent:agents.${p}" "codex -p heavy --full-auto"
+            tmux send-keys -t "multiagent:agents.${p}" Enter
+        done
+        log_info "  └─ 足軽5-8（Codex heavy/xhigh）、召喚完了"
+    elif [ "$KESSEN_MODE" = true ]; then
         # 決戦の陣: 全足軽 Opus Thinking
         for i in {1..8}; do
             p=$((PANE_BASE + i))
@@ -551,7 +603,9 @@ if [ "$SETUP_ONLY" = false ]; then
         log_info "  └─ 足軽5-8（Opus Thinking）、召喚完了"
     fi
 
-    if [ "$KESSEN_MODE" = true ]; then
+    if [ "$CODEX_MODE" = true ]; then
+        log_success "✅ Codex陣で出陣！足軽はOpenAI Codex！"
+    elif [ "$KESSEN_MODE" = true ]; then
         log_success "✅ 決戦の陣で出陣！全軍Opus！"
     else
         log_success "✅ 平時の陣で出陣"
@@ -658,7 +712,12 @@ NINJA_EOF
     log_info "  └─ 足軽に指示書を伝達中..."
     for i in {1..8}; do
         p=$((PANE_BASE + i))
-        tmux send-keys -t "multiagent:agents.${p}" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。"
+        if [ "$CODEX_MODE" = true ]; then
+            # Codex CLI への指示伝達（Codex は異なるプロンプト形式の可能性）
+            tmux send-keys -t "multiagent:agents.${p}" "Read the file instructions/ashigaru.md and understand your role. You are ashigaru${i}. Follow the YAML-based communication protocol."
+        else
+            tmux send-keys -t "multiagent:agents.${p}" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。"
+        fi
         sleep 0.3
         tmux send-keys -t "multiagent:agents.${p}" Enter
         sleep 0.5
