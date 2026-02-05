@@ -565,16 +565,18 @@ if [ "$SETUP_ONLY" = false ]; then
     if [ "$CODEX_MODE" = true ]; then
         # Codex陣: 全足軽 OpenAI Codex CLI
         # プロファイルで reasoning effort を指定（standard=high, heavy=xhigh）
+        # 注意: -c check_for_update_on_startup=false で自動アップデートを無効化（npm競合防止）
+        # --dangerously-bypass-approvals-and-sandbox でtmux等のシステムコマンドも自動実行
         for i in {1..4}; do
             p=$((PANE_BASE + i))
-            tmux send-keys -t "multiagent:agents.${p}" "codex -p standard --full-auto"
+            tmux send-keys -t "multiagent:agents.${p}" "codex -c check_for_update_on_startup=false -p standard --dangerously-bypass-approvals-and-sandbox"
             tmux send-keys -t "multiagent:agents.${p}" Enter
         done
         log_info "  └─ 足軽1-4（Codex standard/high）、召喚完了"
 
         for i in {5..8}; do
             p=$((PANE_BASE + i))
-            tmux send-keys -t "multiagent:agents.${p}" "codex -p heavy --full-auto"
+            tmux send-keys -t "multiagent:agents.${p}" "codex -c check_for_update_on_startup=false -p heavy --dangerously-bypass-approvals-and-sandbox"
             tmux send-keys -t "multiagent:agents.${p}" Enter
         done
         log_info "  └─ 足軽5-8（Codex heavy/xhigh）、召喚完了"
@@ -713,8 +715,8 @@ NINJA_EOF
     for i in {1..8}; do
         p=$((PANE_BASE + i))
         if [ "$CODEX_MODE" = true ]; then
-            # Codex CLI への指示伝達（Codex は異なるプロンプト形式の可能性）
-            tmux send-keys -t "multiagent:agents.${p}" "Read the file instructions/ashigaru.md and understand your role. You are ashigaru${i}. Follow the YAML-based communication protocol."
+            # Codex CLI への指示伝達（日本語で統一、YAML通信の誤解を防ぐ）
+            tmux send-keys -t "multiagent:agents.${p}" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。応答は普通の日本語で、報告書のみYAML形式で書け。"
         else
             tmux send-keys -t "multiagent:agents.${p}" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。"
         fi
