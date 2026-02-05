@@ -124,7 +124,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -x, --codex         足軽をOpenAI Codex CLIで起動"
             echo "                      足軽1-4: -p standard (reasoning high)"
             echo "                      足軽5-8: -p heavy (reasoning xhigh)"
-            echo "                      ※ -k との併用不可、~/.codex/config.toml にプロファイル必要"
+            echo "                      -k と併用で全足軽xhigh（Codex決戦の陣）"
             echo "  -s, --setup-only    tmuxセッションのセットアップのみ（Claude起動なし）"
             echo "  -t, --terminal      Windows Terminal で新しいタブを開く"
             echo "  -shell, --shell SH  シェルを指定（bash または zsh）"
@@ -141,6 +141,7 @@ while [[ $# -gt 0 ]]; do
             echo "  ./shutsujin_departure.sh -c -k        # クリーンスタート＋決戦の陣"
             echo "  ./shutsujin_departure.sh -x           # 足軽をOpenAI Codexで起動"
             echo "  ./shutsujin_departure.sh -c -x        # クリーンスタート＋Codex"
+            echo "  ./shutsujin_departure.sh -k -x        # Codex決戦の陣（全足軽xhigh）"
             echo "  ./shutsujin_departure.sh -shell zsh   # zsh用プロンプトで起動"
             echo ""
             echo "モデル構成:"
@@ -150,9 +151,10 @@ while [[ $# -gt 0 ]]; do
             echo "  足軽5-8:   Opus Thinking"
             echo ""
             echo "陣形:"
-            echo "  平時の陣（デフォルト）: 足軽1-4=Sonnet Thinking, 足軽5-8=Opus Thinking"
-            echo "  決戦の陣（--kessen）:   全足軽=Opus Thinking"
-            echo "  Codex陣（--codex）:     足軽1-4=Codex(high), 足軽5-8=Codex(xhigh)"
+            echo "  平時の陣（デフォルト）:   足軽1-4=Sonnet Thinking, 足軽5-8=Opus Thinking"
+            echo "  決戦の陣（--kessen）:     全足軽=Opus Thinking"
+            echo "  Codex陣（--codex）:       足軽1-4=Codex(high), 足軽5-8=Codex(xhigh)"
+            echo "  Codex決戦（-k -x）:       全足軽=Codex(xhigh)"
             echo ""
             echo "エイリアス:"
             echo "  csst  → cd /mnt/c/tools/multi-agent-shogun && ./shutsujin_departure.sh"
@@ -179,13 +181,8 @@ if [ -n "$SHELL_OVERRIDE" ]; then
     fi
 fi
 
-# -k と -x の排他チェック
-if [ "$KESSEN_MODE" = true ] && [ "$CODEX_MODE" = true ]; then
-    echo "エラー: -k（決戦の陣）と -x（Codex）は同時に指定できません"
-    echo "  -k: 全足軽をOpus Thinkingで起動"
-    echo "  -x: 全足軽をOpenAI Codexで起動"
-    exit 1
-fi
+# -k と -x の組み合わせ: Codex決戦の陣（全足軽xhigh）
+# 排他ではなく、組み合わせ可能に変更
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 出陣バナー表示（CC0ライセンスASCIIアート使用）
@@ -485,7 +482,11 @@ tmux split-window -v
 # ペインラベル設定（プロンプト用: モデル名なし）
 PANE_LABELS=("karo" "ashigaru1" "ashigaru2" "ashigaru3" "ashigaru4" "ashigaru5" "ashigaru6" "ashigaru7" "ashigaru8")
 # ペインタイトル設定（tmuxタイトル用: モデル名付き）
-if [ "$CODEX_MODE" = true ]; then
+if [ "$CODEX_MODE" = true ] && [ "$KESSEN_MODE" = true ]; then
+    # Codex決戦の陣: 全足軽 xhigh
+    PANE_TITLES=("karo(Opus)" "ashigaru1(Codex-xhigh)" "ashigaru2(Codex-xhigh)" "ashigaru3(Codex-xhigh)" "ashigaru4(Codex-xhigh)" "ashigaru5(Codex-xhigh)" "ashigaru6(Codex-xhigh)" "ashigaru7(Codex-xhigh)" "ashigaru8(Codex-xhigh)")
+elif [ "$CODEX_MODE" = true ]; then
+    # Codex平時の陣: 足軽1-4=high, 足軽5-8=xhigh
     PANE_TITLES=("karo(Opus)" "ashigaru1(Codex-high)" "ashigaru2(Codex-high)" "ashigaru3(Codex-high)" "ashigaru4(Codex-high)" "ashigaru5(Codex-xhigh)" "ashigaru6(Codex-xhigh)" "ashigaru7(Codex-xhigh)" "ashigaru8(Codex-xhigh)")
 elif [ "$KESSEN_MODE" = true ]; then
     PANE_TITLES=("karo(Opus)" "ashigaru1(Opus)" "ashigaru2(Opus)" "ashigaru3(Opus)" "ashigaru4(Opus)" "ashigaru5(Opus)" "ashigaru6(Opus)" "ashigaru7(Opus)" "ashigaru8(Opus)")
@@ -498,7 +499,11 @@ PANE_COLORS=("red" "blue" "blue" "blue" "blue" "blue" "blue" "blue" "blue")
 AGENT_IDS=("karo" "ashigaru1" "ashigaru2" "ashigaru3" "ashigaru4" "ashigaru5" "ashigaru6" "ashigaru7" "ashigaru8")
 
 # モデル名設定（pane-border-format で常時表示するため）
-if [ "$CODEX_MODE" = true ]; then
+if [ "$CODEX_MODE" = true ] && [ "$KESSEN_MODE" = true ]; then
+    # Codex決戦の陣: 全足軽 xhigh
+    MODEL_NAMES=("Opus Thinking" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)")
+elif [ "$CODEX_MODE" = true ]; then
+    # Codex平時の陣: 足軽1-4=high, 足軽5-8=xhigh
     MODEL_NAMES=("Opus Thinking" "Codex(high)" "Codex(high)" "Codex(high)" "Codex(high)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)" "Codex(xhigh)")
 elif [ "$KESSEN_MODE" = true ]; then
     MODEL_NAMES=("Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking" "Opus Thinking")
@@ -562,9 +567,18 @@ if [ "$SETUP_ONLY" = false ]; then
     tmux send-keys -t "multiagent:agents.${p}" Enter
     log_info "  └─ 家老（Opus Thinking）、召喚完了"
 
-    if [ "$CODEX_MODE" = true ]; then
-        # Codex陣: 全足軽 OpenAI Codex CLI
-        # プロファイルで reasoning effort を指定（standard=high, heavy=xhigh）
+    if [ "$CODEX_MODE" = true ] && [ "$KESSEN_MODE" = true ]; then
+        # Codex決戦の陣: 全足軽 xhigh
+        # 注意: -c check_for_update_on_startup=false で自動アップデートを無効化（npm競合防止）
+        # --dangerously-bypass-approvals-and-sandbox でtmux等のシステムコマンドも自動実行
+        for i in {1..8}; do
+            p=$((PANE_BASE + i))
+            tmux send-keys -t "multiagent:agents.${p}" "codex -c check_for_update_on_startup=false -p heavy --dangerously-bypass-approvals-and-sandbox"
+            tmux send-keys -t "multiagent:agents.${p}" Enter
+        done
+        log_info "  └─ 足軽1-8（Codex heavy/xhigh）、Codex決戦の陣で召喚完了"
+    elif [ "$CODEX_MODE" = true ]; then
+        # Codex平時の陣: 足軽1-4=high, 足軽5-8=xhigh
         # 注意: -c check_for_update_on_startup=false で自動アップデートを無効化（npm競合防止）
         # --dangerously-bypass-approvals-and-sandbox でtmux等のシステムコマンドも自動実行
         for i in {1..4}; do
@@ -605,7 +619,9 @@ if [ "$SETUP_ONLY" = false ]; then
         log_info "  └─ 足軽5-8（Opus Thinking）、召喚完了"
     fi
 
-    if [ "$CODEX_MODE" = true ]; then
+    if [ "$CODEX_MODE" = true ] && [ "$KESSEN_MODE" = true ]; then
+        log_success "✅ Codex決戦の陣で出陣！全足軽xhigh！"
+    elif [ "$CODEX_MODE" = true ]; then
         log_success "✅ Codex陣で出陣！足軽はOpenAI Codex！"
     elif [ "$KESSEN_MODE" = true ]; then
         log_success "✅ 決戦の陣で出陣！全軍Opus！"
