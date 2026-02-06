@@ -20,6 +20,12 @@ if [ -f "./config/settings.yaml" ]; then
     LANG_SETTING=$(grep "^language:" ./config/settings.yaml 2>/dev/null | awk '{print $2}' || echo "ja")
 fi
 
+# Codex モデル設定（モデル更新時はここだけ変更）
+CODEX_MODEL="gpt-5.3-codex"
+CODEX_EFFORT_STANDARD="high"
+CODEX_EFFORT_HEAVY="xhigh"
+CODEX_COMMON_OPTS="-c check_for_update_on_startup=false --dangerously-bypass-approvals-and-sandbox"
+
 # シェル設定を読み取り（デフォルト: bash）
 SHELL_SETTING="bash"
 if [ -f "./config/settings.yaml" ]; then
@@ -122,9 +128,9 @@ while [[ $# -gt 0 ]]; do
             echo "  -k, --kessen        決戦の陣（全足軽をOpus Thinkingで起動）"
             echo "                      未指定時は平時の陣（足軽1-4=Sonnet, 足軽5-8=Opus）"
             echo "  -x, --codex         足軽をOpenAI Codex CLIで起動"
-            echo "                      足軽1-4: -p standard (reasoning high)"
-            echo "                      足軽5-8: -p heavy (reasoning xhigh)"
-            echo "                      -k と併用で全足軽xhigh（Codex決戦の陣）"
+            echo "                      足軽1-4: ${CODEX_MODEL} (reasoning ${CODEX_EFFORT_STANDARD})"
+            echo "                      足軽5-8: ${CODEX_MODEL} (reasoning ${CODEX_EFFORT_HEAVY})"
+            echo "                      -k と併用で全足軽${CODEX_EFFORT_HEAVY}（Codex決戦の陣）"
             echo "  -s, --setup-only    tmuxセッションのセットアップのみ（Claude起動なし）"
             echo "  -t, --terminal      Windows Terminal で新しいタブを開く"
             echo "  -shell, --shell SH  シェルを指定（bash または zsh）"
@@ -566,31 +572,27 @@ if [ "$SETUP_ONLY" = false ]; then
 
     if [ "$CODEX_MODE" = true ] && [ "$KESSEN_MODE" = true ]; then
         # Codex決戦の陣: 全足軽 xhigh
-        # 注意: -c check_for_update_on_startup=false で自動アップデートを無効化（npm競合防止）
-        # --dangerously-bypass-approvals-and-sandbox でtmux等のシステムコマンドも自動実行
         for i in {1..8}; do
             p=$((PANE_BASE + i))
-            tmux send-keys -t "multiagent:agents.${p}" "codex -c check_for_update_on_startup=false -p heavy --dangerously-bypass-approvals-and-sandbox"
+            tmux send-keys -t "multiagent:agents.${p}" "codex -m ${CODEX_MODEL} -c 'model_reasoning_effort=${CODEX_EFFORT_HEAVY}' ${CODEX_COMMON_OPTS}"
             tmux send-keys -t "multiagent:agents.${p}" Enter
         done
-        log_info "  └─ 足軽1-8（Codex heavy/xhigh）、Codex決戦の陣で召喚完了"
+        log_info "  └─ 足軽1-8（${CODEX_MODEL}/${CODEX_EFFORT_HEAVY}）、Codex決戦の陣で召喚完了"
     elif [ "$CODEX_MODE" = true ]; then
         # Codex平時の陣: 足軽1-4=high, 足軽5-8=xhigh
-        # 注意: -c check_for_update_on_startup=false で自動アップデートを無効化（npm競合防止）
-        # --dangerously-bypass-approvals-and-sandbox でtmux等のシステムコマンドも自動実行
         for i in {1..4}; do
             p=$((PANE_BASE + i))
-            tmux send-keys -t "multiagent:agents.${p}" "codex -c check_for_update_on_startup=false -p standard --dangerously-bypass-approvals-and-sandbox"
+            tmux send-keys -t "multiagent:agents.${p}" "codex -m ${CODEX_MODEL} -c 'model_reasoning_effort=${CODEX_EFFORT_STANDARD}' ${CODEX_COMMON_OPTS}"
             tmux send-keys -t "multiagent:agents.${p}" Enter
         done
-        log_info "  └─ 足軽1-4（Codex standard/high）、召喚完了"
+        log_info "  └─ 足軽1-4（${CODEX_MODEL}/${CODEX_EFFORT_STANDARD}）、召喚完了"
 
         for i in {5..8}; do
             p=$((PANE_BASE + i))
-            tmux send-keys -t "multiagent:agents.${p}" "codex -c check_for_update_on_startup=false -p heavy --dangerously-bypass-approvals-and-sandbox"
+            tmux send-keys -t "multiagent:agents.${p}" "codex -m ${CODEX_MODEL} -c 'model_reasoning_effort=${CODEX_EFFORT_HEAVY}' ${CODEX_COMMON_OPTS}"
             tmux send-keys -t "multiagent:agents.${p}" Enter
         done
-        log_info "  └─ 足軽5-8（Codex heavy/xhigh）、召喚完了"
+        log_info "  └─ 足軽5-8（${CODEX_MODEL}/${CODEX_EFFORT_HEAVY}）、召喚完了"
     elif [ "$KESSEN_MODE" = true ]; then
         # 決戦の陣: 全足軽 Opus Thinking
         for i in {1..8}; do
@@ -728,8 +730,8 @@ NINJA_EOF
     for i in {1..8}; do
         p=$((PANE_BASE + i))
         if [ "$CODEX_MODE" = true ]; then
-            # Codex CLI への指示伝達（日本語で統一、YAML通信の誤解を防ぐ）
-            tmux send-keys -t "multiagent:agents.${p}" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。応答は普通の日本語で、報告書のみYAML形式で書け。"
+            # Codex CLI への指示伝達（AGENTS.md を参照、戦国風口調で統一）
+            tmux send-keys -t "multiagent:agents.${p}" "AGENTS.md を読んで役割を理解せよ。汝は足軽${i}号である。会話の応答は戦国風口調（〜でござる、承知つかまつった等）の普通の日本語テキストで行え。YAML形式で応答するな。YAMLは報告ファイル（queue/reports/）に書くときだけ使え。"
         else
             tmux send-keys -t "multiagent:agents.${p}" "instructions/ashigaru.md を読んで役割を理解せよ。汝は足軽${i}号である。"
         fi

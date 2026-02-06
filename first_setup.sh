@@ -335,24 +335,10 @@ if command -v codex &> /dev/null; then
     log_success "OpenAI Codex CLI がインストール済みです"
     log_info "バージョン: $CODEX_VERSION"
 
-    # プロファイル設定の確認
+    # Codex設定ファイルの存在確認
     CODEX_CONFIG="$HOME/.codex/config.toml"
     if [ -f "$CODEX_CONFIG" ]; then
-        if grep -q "\[profiles.standard\]" "$CODEX_CONFIG" && grep -q "\[profiles.heavy\]" "$CODEX_CONFIG"; then
-            log_info "Codex プロファイル (standard/heavy) が設定済みです"
-        else
-            log_warn "Codex プロファイルが未設定です"
-            echo ""
-            echo "  ~/.codex/config.toml に以下を追加してください:"
-            echo "  [profiles.standard]"
-            echo "  model = \"gpt-5.2-codex\""
-            echo "  model_reasoning_effort = \"high\""
-            echo ""
-            echo "  [profiles.heavy]"
-            echo "  model = \"gpt-5.2-codex\""
-            echo "  model_reasoning_effort = \"xhigh\""
-            echo ""
-        fi
+        log_info "Codex 設定ファイルが存在します"
     fi
     RESULTS+=("OpenAI Codex CLI: OK (オプション)")
 else

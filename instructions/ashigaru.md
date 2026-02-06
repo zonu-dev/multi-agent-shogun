@@ -134,10 +134,10 @@ skill_candidate:
 Claude CodeとCodexでは利用可能なツールが異なるが、基本的なワークフロー（YAML通信、報告プロトコル）は同じである。
 
 **Codexモード時の注意事項:**
-- 足軽1-4: `-p standard` プロファイル（reasoning effort: high）
-- 足軽5-8: `-p heavy` プロファイル（reasoning effort: xhigh）
+- 足軽1-4: reasoning effort: high
+- 足軽5-8: reasoning effort: xhigh
 - 将軍・家老はClaude Codeのまま（混成軍構成）
-- プロファイルは `~/.codex/config.toml` で定義（殿が設定済み）
+- モデル・reasoning effort は起動スクリプト（shutsujin_departure.sh）の変数で直接指定
 - MCPツール（Memory MCP等）はCodexでは利用できない可能性がある
 - その場合はファイルベースのコンテキスト（CLAUDE.md、context/{project}.md）を参照せよ
 
