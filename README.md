@@ -505,20 +505,22 @@ Session 2: AI loads memory on startup
 
 Agents communicate through file-based mailbox (inbox_write.sh + inbox_watcher.sh). **No polling loops wasting API calls.**
 
-**Two-Layer Architecture (nudge-only delivery):**
+**Three-Layer Architecture (Layered Hybrid v3.1):**
 
 - **Layer 1: File Persistence**
   - `inbox_write.sh` writes messages to `queue/inbox/{agent}.yaml` with flock (exclusive lock)
   - Full message content stored in YAML — guaranteed persistence
   - Multiple agents can write simultaneously (flock serializes writes)
 
-- **Layer 2: Nudge Delivery**
+- **Layer 2: Wake-Up Delivery** (3-tier fallback)
   - `inbox_watcher.sh` detects file changes via `inotifywait` (kernel event, not polling)
-  - Watcher sends a short 1-line nudge via `send-keys` (timeout 5s) to wake the agent
+  - **Tier 1 — Self-Watch**: If the agent runs its own `inotifywait` on its inbox file, no nudge is needed (agent wakes itself)
+  - **Tier 2 — Paste-Buffer**: `tmux set-buffer` + `tmux paste-buffer` writes a short nudge directly to the agent's terminal input (no key-binding interference)
+  - **Tier 3 — send-keys**: Only used for `Enter` key after paste-buffer, and for CLI commands (`/clear`, `/model`)
   - Agent reads its own inbox file and processes unread messages
-  - **No full message via send-keys** — only a wake-up signal
 
 - **Zero CPU**: Watcher blocks on `inotifywait` until file modification event (CPU 0% while idle)
+- **Zero send-keys for content**: Message content never travels through send-keys — eliminates character corruption and transmission hangs
 
 ### 📸 5. Screenshot Integration
 
@@ -943,8 +945,8 @@ These principles are documented in detail: **[docs/philosophy.md](docs/philosoph
 3. **No interruptions**: Prevents agents from interrupting each other or your input
 4. **Easy debugging**: Humans can read inbox YAML files directly to understand message flow
 5. **No conflicts**: `flock` (exclusive lock) prevents concurrent writes — multiple agents can send simultaneously without race conditions
-6. **Guaranteed delivery**: File write succeeded = message will be delivered. No delivery verification needed, no false negatives, no 1.5h hangs from send-keys failures
-7. **Nudge-only delivery**: `send-keys` transmits only a short wake-up signal (timeout 5s), not full message content. Agents read from their inbox files themselves. Eliminates send-keys transmission failures (character corruption, 1.5h hangs) that plagued the old "send full message" approach.
+6. **Guaranteed delivery**: File write succeeded = message will be delivered. No delivery verification needed, no false negatives
+7. **Layered Hybrid delivery (v3.1)**: Three-tier wake-up: (1) agent self-watch via `inotifywait` (zero nudge needed), (2) `paste-buffer` fallback (writes directly to terminal input), (3) `send-keys` only for Enter key. Message content never travels through send-keys — eliminates character corruption and transmission hangs that plagued earlier approaches.
 
 ### Agent Identification (@agent_id)
 
@@ -1486,7 +1488,7 @@ Even if you're not comfortable with keyboard shortcuts, you can switch, scroll, 
 - **SayTask notifications** — Streak tracking, Eat the Frog, behavioral psychology-driven motivation
 - **Pane border task display** — See each agent's current task at a glance on the tmux pane border
 - **Shout mode** (default) — Ashigaru shout personalized battle cries after completing tasks. Disable with `--silent`
-- **Nudge-only mailbox** — Agents communicate via file-based inbox; `send-keys` only delivers a 1-line wake-up signal, eliminating transmission failures
+- **Layered Hybrid mailbox (v3.1)** — Agents communicate via file-based inbox; wake-up delivery uses self-watch → paste-buffer → send-keys (Enter only) fallback chain. Content never touches send-keys, eliminating transmission failures
 - **Agent self-identification** (`@agent_id`) — Stable identity via tmux user options, immune to pane reordering
 - **Battle mode** (`-k` flag) — All-Opus formation for maximum capability
 - **Task dependency system** (`blockedBy`) — Automatic unblocking of dependent tasks

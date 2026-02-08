@@ -502,20 +502,22 @@ AIがあなたの好みを記憶します：
 エージェントはファイルベースのメールボックス（inbox_write.sh + inbox_watcher.sh）で通信します。
 **ポーリングループでAPIコールを浪費しません。**
 
-**2層構造（nudge-only配信方式）:**
+**3層構造（Layered Hybrid v3.1）:**
 
 - **Layer 1: ファイル永続化**
   - `inbox_write.sh` がメッセージを `queue/inbox/{agent}.yaml` に flock（排他ロック）付きで書き込み
   - メッセージ全文をYAMLに保存 — 永続化保証
   - 複数エージェントが同時書き込み可能（flockが直列化）
 
-- **Layer 2: nudge配信**
+- **Layer 2: 起床配信**（3段階フォールバック）
   - `inbox_watcher.sh` が `inotifywait`（カーネルイベント）でファイル変更を検知
-  - watcherが短い1行のnudge（起動シグナル）を `send-keys` で送信（timeout 5s）
+  - **Tier 1 — Self-Watch**: エージェント自身が `inotifywait` で自分のinboxを監視している場合、nudge不要（自力で起床）
+  - **Tier 2 — Paste-Buffer**: `tmux set-buffer` + `tmux paste-buffer` で短いnudgeをエージェントの端末入力に直接書き込み（キーバインド干渉なし）
+  - **Tier 3 — send-keys**: paste-buffer後の `Enter` キー送信と、CLIコマンド（`/clear`、`/model`）にのみ使用
   - エージェント自身が自分のinboxファイルをReadして未読メッセージを処理
-  - **send-keysはメッセージ全文を送らない** — 起床通知のみ
 
 - **CPU使用率ゼロ**: watcherは`inotifywait`でファイル変更イベントまでブロック（待機中はCPU 0%）
+- **send-keysでコンテンツ送信ゼロ**: メッセージ内容はsend-keysを一切通過しない — 文字化けや配信ハングを根絶
 
 ### 📸 5. スクリーンショット連携
 
@@ -920,8 +922,8 @@ task:
 3. **割り込み防止**: エージェント同士やあなたの入力への割り込みを防止
 4. **デバッグ容易**: 人間がinbox YAMLファイルを直接読んでメッセージフローを把握できる
 5. **競合回避**: `flock`（排他ロック）で同時書き込みを防止 — 複数エージェントが同時送信してもレースコンディションなし
-6. **配信保証**: ファイル書き込み成功 = メッセージ配信保証。到達確認不要、偽陰性なし、send-keys失敗による1.5時間ハングもなし
-7. **nudge-only配信**: `send-keys`は短い起床通知のみ送信（timeout 5s）、メッセージ全文は送らない。エージェントが自分でinboxファイルをRead。旧方式（メッセージ全文をsend-keys送信）で発生した文字化け・1.5時間ハング等の配信障害を根絶。
+6. **配信保証**: ファイル書き込み成功 = メッセージ配信保証。到達確認不要、偽陰性なし
+7. **Layered Hybrid配信（v3.1）**: 3段階の起床方式: (1) エージェント自身の `inotifywait` による自己監視（nudge不要）、(2) `paste-buffer` フォールバック（端末入力に直接書き込み）、(3) `send-keys` は Enter キーのみ。メッセージ内容はsend-keysを一切通過しない — 旧方式で発生した文字化け・1.5時間ハング等の配信障害を根絶。
 
 ### エージェント識別（@agent_id）
 
@@ -1472,7 +1474,7 @@ tmux respawn-pane -t shogun:0.0 -k 'claude --model opus --dangerously-skip-permi
 - **SayTask通知** — ストリーク追跡、Eat the Frog、行動心理学に基づくモチベーション管理
 - **ペインボーダータスク表示** — tmuxペインボーダーで各エージェントの現在のタスクを一目で確認
 - **シャウトモード**（デフォルト）— 足軽がタスク完了時にパーソナライズされた戦国風の叫びを表示。`--silent` で無効化
-- **nudge-only メールボックス** — ファイルベースのinboxで通信、`send-keys` は1行の起床通知のみ送信。配信障害を根絶
+- **Layered Hybridメールボックス（v3.1）** — ファイルベースのinboxで通信。起床配信はself-watch → paste-buffer → send-keys（Enterのみ）の3段階フォールバック。コンテンツはsend-keysを通過せず、配信障害を根絶
 - **エージェント自己識別**（`@agent_id`）— tmuxユーザーオプションによる安定したID、ペイン再配置の影響を受けない
 - **決戦モード**（`-k` フラグ）— 全足軽Opusの最大能力陣形
 - **タスク依存関係システム**（`blockedBy`）— 依存タスクの自動ブロック解除
