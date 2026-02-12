@@ -453,7 +453,7 @@ send_context_reset() {
     timeout 5 tmux send-keys -t "$PANE_TARGET" "$reset_cmd" 2>/dev/null
     sleep 0.3
     timeout 5 tmux send-keys -t "$PANE_TARGET" Enter 2>/dev/null
-    sleep 3  # Wait for context reset to take effect
+    sleep 5  # Wait for context reset to take effect (Codex /new needs ~5s to render new prompt)
 }
 
 # ─── Agent self-watch detection ───
